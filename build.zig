@@ -1,20 +1,25 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
     const yazap = b.addModule("yazap", .{
         .root_source_file = b.path("src/lib.zig"),
-        .target = b.graph.host,
+        .target = target,
+        .optimize = optimize,
     });
 
-    testStep(b);
-    examplesStep(b, yazap);
+    testStep(b, target, optimize);
+    examplesStep(b, yazap, target, optimize);
 }
 
-fn testStep(b: *std.Build) void {
+fn testStep(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
     // Test file information.
     const test_module = b.addModule("test", .{
         .root_source_file = b.path("src/test.zig"),
-        .target = b.graph.host,
+        .target = target,
+        .optimize = optimize,
     });
     const tests = b.addTest(.{ .root_module = test_module });
     // This runs the unit tests.
@@ -24,7 +29,7 @@ fn testStep(b: *std.Build) void {
     step.dependOn(&runner.step);
 }
 
-fn examplesStep(b: *std.Build, yazap: *std.Build.Module) void {
+fn examplesStep(b: *std.Build, yazap: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
     var dir = std.fs.cwd().openDir("./examples/", .{ .iterate = true }) catch return;
     defer dir.close();
 
@@ -44,7 +49,8 @@ fn examplesStep(b: *std.Build, yazap: *std.Build.Module) void {
         // Binary information of an example.
         const example_exe_module = b.addModule(example_name, .{
             .root_source_file = example_file_path,
-            .target = b.graph.host,
+            .target = target,
+            .optimize = optimize,
         });
         const executable = b.addExecutable(.{
             .name = example_name,
