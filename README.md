@@ -16,6 +16,7 @@ Inspired by [clap-rs](https://github.com/clap-rs/clap) and [andrewrk/ziglang: sr
 | yazap                                                             | Zig                                      |
 | ----------------------------------------------------------------- | ---------------------------------------- |
 | main                                                              | [master](https://github.com/ziglang/zig) |
+| [`0.7.0`](https://github.com/prajwalch/yazap/releases/tag/v0.7.0) | `0.15.2`         |
 | [`0.6.3`](https://github.com/prajwalch/yazap/releases/tag/v0.6.3) | `0.14.0`         |
 | [`0.5.1`](https://github.com/prajwalch/yazap/releases/tag/v0.5.1) | `0.12.0`, `0.12.1` and  `0.13.0`         |
 | <= `0.5.0`                                                        | Not supported to any                     |
@@ -201,7 +202,7 @@ arguments, which can be useful during testing. Both functions returns
 [`ArgMatches`](/src/ArgMatches.zig).
 
 ```zig
-const matches = try app.parseProcess();
+const matches = try app.parseProcess(io, args);
 
 if (matches.containsArg("version")) {
     log.info("v0.1.0", .{});
@@ -300,7 +301,7 @@ update_cmd.setProperty(.help_on_empty_args);
 
 try myls.addSubcommand(update_cmd);
 
-const matches = try myls.parseProcess();
+const matches = try myls.parseProcess(io, args);
 
 // --snip--
 ```
@@ -313,11 +314,12 @@ const yazap = @import("yazap");
 
 const allocator = std.heap.page_allocator;
 const log = std.log;
+const Init = std.process.Init;
 const App = yazap.App;
 const Arg = yazap.Arg;
 
-pub fn main() anyerror!void {
-    var app = App.init(allocator, "myls", "My custom ls");
+pub fn main(init: Init) !void {
+    var app = App.init(init.gpa, "myls", "My custom ls");
     defer app.deinit();
 
     var myls = app.rootCommand();
@@ -363,7 +365,7 @@ pub fn main() anyerror!void {
     try myls.addSubcommand(update_cmd);
 
     // Get the parse result.
-    const matches = try app.parseProcess();
+    const matches = try app.parseProcess(init.io, init.minimal.args);
 
     if (matches.containsArg("version")) {
         log.info("v0.1.0", .{});

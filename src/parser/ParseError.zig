@@ -17,9 +17,9 @@ pub fn setContext(self: *ParseError, ctx: Context) void {
 }
 
 /// Prints the error context in a nice error message.
-pub fn print(self: *const ParseError) PrintError!void {
+pub fn print(self: *const ParseError, io: std.Io) PrintError!void {
     var buffer: [1024]u8 = undefined;
-    var _writer = std.fs.File.stderr().writer(&buffer);
+    var _writer = std.Io.File.stderr().writer(io, &buffer);
     const writer = &_writer.interface;
 
     // Print the error prefix for nicer output.
@@ -111,7 +111,7 @@ pub fn print(self: *const ParseError) PrintError!void {
 }
 
 /// An error type returned by the `print`.
-pub const PrintError = std.fs.File.WriteError || std.Io.Writer.Error;
+pub const PrintError = std.Io.Writer.Error;
 /// An error type returned by the parser.
 pub const Error = error{
     UnrecognizedCommand,

@@ -2,7 +2,7 @@ const HelpMessageWriter = @This();
 
 const std = @import("std");
 const Arg = @import("Arg.zig");
-const BufferedWriter = std.fs.File.Writer;
+const BufferedWriter = std.Io.File.Writer;
 const Command = @import("Command.zig");
 const ParsedCommand = @import("parser/ParseResult.zig").ParsedCommand;
 
@@ -16,9 +16,9 @@ writer: BufferedWriter = undefined,
 /// Command whose help to write.
 command: *const ParsedCommand = undefined,
 
-pub fn init(command: *const ParsedCommand, buffer: []u8) HelpMessageWriter {
+pub fn init(command: *const ParsedCommand, io: std.Io, buffer: []u8) HelpMessageWriter {
     return HelpMessageWriter{
-        .writer = .init(std.fs.File.stderr(), buffer),
+        .writer = .init(std.Io.File.stderr(), io, buffer),
         .command = command,
     };
 }
@@ -48,15 +48,15 @@ fn writeHeader(self: *HelpMessageWriter) !void {
 
     const command = self.command.deref();
 
+    if (command.countOptions() >= 1) {
+        try writer.writeAll(" [OPTIONS]");
+    }
+
     if (command.countPositionalArgs() >= 1) {
         try writer.print(
             " {c}ARGS{c}",
             getBraces(command.hasProperty(.positional_arg_required)),
         );
-    }
-
-    if (command.countOptions() >= 1) {
-        try writer.writeAll(" [OPTIONS]");
     }
 
     if (command.countSubcommands() >= 1) {
@@ -197,8 +197,11 @@ fn writeOption(self: *HelpMessageWriter, option: *const Arg) !void {
             // Strangely this line was compiled on zig 0.14.1
             //try line.description.print("values: {s}", .{valid_values});
             try line.description.print("values: ", .{});
-            for (valid_values) |v| {
+            for (valid_values, 0..) |v, i| {
                 try line.description.print("{s}", .{v});
+                if (i < valid_values.len-1) {
+                    try line.description.print(" ", .{});
+                }
             }
             return writer.print("{f}", .{&line});
         }
@@ -211,8 +214,11 @@ fn writeOption(self: *HelpMessageWriter, option: *const Arg) !void {
         // Strangely this line was compiled on zig 0.14.1
         //try new_line.description.print("values: {s}", .{valid_values});
         try new_line.description.print("values: ", .{});
-        for (valid_values) |v| {
+        for (valid_values, 0..) |v, i| {
             try new_line.description.print("{s}", .{v});
+            if (i < valid_values.len-1) {
+                try new_line.description.print(" ", .{});
+            }
         }
         try writer.print("{f}", .{&new_line});
     }

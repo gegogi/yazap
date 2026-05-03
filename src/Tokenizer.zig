@@ -120,7 +120,7 @@ pub const Token = struct {
 };
 
 fn tokenizeLongOption(arg: []const u8) Token {
-    const option = mem.trimLeft(u8, arg, "--");
+    const option = mem.trimStart(u8, arg, "--");
     const kind: Token.Kind = blk: {
         if (mem.indexOfScalar(u8, option, '=')) |eql_pos| {
             const has_value = option[eql_pos + 1 ..].len >= 1;
@@ -138,7 +138,7 @@ fn tokenizeLongOption(arg: []const u8) Token {
 }
 
 fn tokenizeShortOption(arg: []const u8) Token {
-    const option = mem.trimLeft(u8, arg, "-");
+    const option = mem.trimStart(u8, arg, "-");
     const kind: Token.Kind = kind: {
         if (mem.indexOfScalar(u8, option, '=')) |eql_pos| {
             const has_options_combined = option[0..eql_pos].len > 1;

@@ -3,6 +3,7 @@ const App = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
+const ArenaAllocator = std.heap.ArenaAllocator;
 const ArgMatches = @import("ArgMatches.zig");
 const Command = @import("Command.zig");
 const HelpMessageWriter = @import("HelpMessageWriter.zig");
@@ -13,6 +14,8 @@ const help_message_buffer_size = 4096;
 
 /// Top level allocator for the entire library.
 allocator: Allocator,
+/// Arena for `process_args`, as per `std.process.Args.toSlice` doc.
+arena: ?ArenaAllocator = null,
 /// Root command of the app.
 command: Command,
 /// Core structure containing parse result.
@@ -20,7 +23,7 @@ command: Command,
 /// It is not intended for direct access, use `ArgMatches` instead.
 parse_result: ?ParseResult = null,
 /// Raw buffer containing command line arguments.
-process_args: ?[]const [:0]u8 = null,
+process_args: ?[]const [:0]const u8 = null,
 
 /// Creates a new instance of `App`.
 ///
@@ -32,7 +35,9 @@ process_args: ?[]const [:0]u8 = null,
 pub fn init(allocator: Allocator, name: []const u8, description: ?[]const u8) App {
     return App{
         .allocator = allocator,
-        .command = Command.init(allocator, name, description) catch { @panic("failed to create Command"); }
+        .command = Command.init(allocator, name, description) catch {
+            @panic("failed to create Command");
+        },
     };
 }
 
@@ -49,9 +54,8 @@ pub fn deinit(self: *App) void {
     if (self.parse_result) |*parse_result| {
         parse_result.deinit();
     }
-    if (self.process_args) |args| {
-        std.process.argsFree(self.allocator, args);
-    }
+    if (self.arena) |*arena|
+        arena.deinit();
     self.command.deinit();
     self.parse_result = null;
 }
@@ -67,7 +71,9 @@ pub fn deinit(self: *App) void {
 /// var subcmd1 = app.createCommand("subcmd1", "First Subcommand");
 /// ```
 pub fn createCommand(self: *App, name: []const u8, description: ?[]const u8) Command {
-    return Command.init(self.allocator, name, description) catch { @panic("failed to create Command"); };
+    return Command.init(self.allocator, name, description) catch {
+        @panic("failed to create Command");
+    };
 }
 
 /// Returns a pointer to the root `Command` of the application.
@@ -99,11 +105,12 @@ pub fn rootCommand(self: *App) *Command {
 ///
 /// // Add arguments and subcommands using `root`.
 ///
-/// const matches = try app.parseProcess();
+/// const matches = try app.parseProcess(io);
 /// ```
-pub fn parseProcess(self: *App) YazapError!ArgMatches {
-    self.process_args = try std.process.argsAlloc(self.allocator);
-    return self.parseFrom(self.process_args.?[1..]);
+pub fn parseProcess(self: *App, io: std.Io, args: std.process.Args) YazapError!ArgMatches {
+    self.arena = .init(self.allocator);
+    self.process_args = try args.toSlice(self.arena.?.allocator());
+    return self.parseFrom(io, self.process_args.?[1..]);
 }
 
 /// Parses the given arguments.
@@ -118,21 +125,21 @@ pub fn parseProcess(self: *App) YazapError!ArgMatches {
 ///
 /// // Add arguments and subcommands using `root`.
 ///
-/// const matches = try app.parseFrom(&.{ "arg1", "--some-option" "subcmd" });
+/// const matches = try app.parseFrom(io, &.{ "arg1", "--some-option" "subcmd" });
 /// ```
-pub fn parseFrom(self: *App, argv: []const [:0]const u8) YazapError!ArgMatches {
+pub fn parseFrom(self: *App, io: std.Io, argv: []const [:0]const u8) YazapError!ArgMatches {
     var parser = Parser.init(self.allocator, argv, self.rootCommand());
     var result = parser.parse() catch |err| {
         // Don't clutter the test result with error messages.
         if (!builtin.is_test) {
-            try parser.perror.print();
+            try parser.perror.print(io);
         }
         return err;
     };
 
     if (result.getCommandContainingHelpFlag()) |command| {
         var buffer: [help_message_buffer_size]u8 = undefined;
-        var help_writer = HelpMessageWriter.init(command, &buffer);
+        var help_writer = HelpMessageWriter.init(command, io, &buffer);
         try help_writer.write();
         result.deinit();
         self.deinit();
@@ -162,14 +169,14 @@ pub fn parseFrom(self: *App, argv: []const [:0]const u8) YazapError!ArgMatches {
 /// const matches = try app.parseProcess();
 ///
 /// if (!matches.containsArgs()) {
-///     try app.displayHelp();
+///     try app.displayHelp(io);
 ///     return;
 /// }
 /// ```
-pub fn displayHelp(self: *App) YazapError!void {
+pub fn displayHelp(self: *App, io: std.Io) YazapError!void {
     if (self.parse_result) |parse_result| {
         var buffer: [help_message_buffer_size]u8 = undefined;
-        var help_writer = HelpMessageWriter.init(parse_result.getCommand(), &buffer);
+        var help_writer = HelpMessageWriter.init(parse_result.getCommand(), io, &buffer);
         try help_writer.write();
     }
 }
@@ -197,15 +204,15 @@ pub fn displayHelp(self: *App) YazapError!void {
 ///
 /// if (matches.subcommandMatches("subcmd")) |subcmd_matches| {
 ///     if (!subcmd_matches.containsArgs()) {
-///         try app.displaySubcommandHelp();
+///         try app.displaySubcommandHelp(io);
 /// }
 /// ```
-pub fn displaySubcommandHelp(self: *App) YazapError!void {
+pub fn displaySubcommandHelp(self: *App, io: std.Io) YazapError!void {
     const parse_result = self.parse_result orelse return;
 
     if (parse_result.getActiveSubcommand()) |subcmd| {
         var buffer: [help_message_buffer_size]u8 = undefined;
-        var help_writer = HelpMessageWriter.init(subcmd, &buffer);
+        var help_writer = HelpMessageWriter.init(subcmd, io, &buffer);
         try help_writer.write();
     }
 }

@@ -1,12 +1,11 @@
 const std = @import("std");
 const yazap = @import("yazap");
 
-const allocator = std.heap.page_allocator;
 const App = yazap.App;
 const Arg = yazap.Arg;
 
-pub fn main() anyerror!void {
-    var app = App.init(allocator, "mygit", null);
+pub fn main(init: std.process.Init) anyerror!void {
+    var app = App.init(init.gpa, "mygit", null);
     defer app.deinit();
 
     var git = app.rootCommand();
@@ -35,7 +34,7 @@ pub fn main() anyerror!void {
     try git.addSubcommand(cmd_push);
     try git.addSubcommand(cmd_pull);
 
-    const matches = try app.parseProcess();
+    const matches = try app.parseProcess(init.io, init.minimal.args);
 
     if (matches.containsArg("init")) {
         std.debug.print("Initilize empty repo", .{});

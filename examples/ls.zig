@@ -1,13 +1,12 @@
 const std = @import("std");
 const yazap = @import("yazap");
 
-const allocator = std.heap.page_allocator;
 const log = std.log;
 const App = yazap.App;
 const Arg = yazap.Arg;
 
-pub fn main() anyerror!void {
-    var app = App.init(allocator, "myls", "My custom ls");
+pub fn main(init: std.process.Init) anyerror!void {
+    var app = App.init(init.gpa, "myls", "My custom ls");
     defer app.deinit();
 
     var myls = app.rootCommand();
@@ -46,7 +45,7 @@ pub fn main() anyerror!void {
         &[_][]const u8{ "always", "auto", "never" },
     ));
 
-    const matches = try app.parseProcess();
+    const matches = try app.parseProcess(init.io, init.minimal.args);
 
     // Use `.help_on_empty_args` property.
     //

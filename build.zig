@@ -10,8 +10,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+<<<<<<< HEAD
     testStep(b, target, optimize);
     examplesStep(b, yazap, target, optimize);
+=======
+    testStep(b);
+    examplesStep(b, yazap);
+    docsStep(b, yazap);
+>>>>>>> origin/main
 }
 
 fn testStep(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
@@ -30,13 +36,16 @@ fn testStep(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.built
 }
 
 fn examplesStep(b: *std.Build, yazap: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
-    var dir = std.fs.cwd().openDir("./examples/", .{ .iterate = true }) catch return;
-    defer dir.close();
+    var threaded_io: std.Io.Threaded = .init_single_threaded;
+    defer threaded_io.deinit();
+    const io = threaded_io.io();
+    var dir = std.Io.Dir.cwd().openDir(io, "./examples/", .{ .iterate = true }) catch return;
+    defer dir.close(io);
 
     const step = b.step("examples", "Build all the examples");
     var examples = dir.iterate();
 
-    while (examples.next() catch @panic("failed to get example file")) |example_file| {
+    while (examples.next(io) catch @panic("failed to get example file")) |example_file| {
         std.debug.assert(example_file.kind == .file);
         // If not a .zig file, skip it
         if (!std.mem.endsWith(u8, example_file.name, ".zig")) continue;
@@ -63,4 +72,21 @@ fn examplesStep(b: *std.Build, yazap: *std.Build.Module, target: std.Build.Resol
         const installer = b.addInstallArtifact(executable, .{});
         step.dependOn(&installer.step);
     }
+}
+
+fn docsStep(b: *std.Build, yazap: *std.Build.Module) void {
+    const lib = b.addLibrary(.{
+        .name = "yazap",
+        .root_module = yazap,
+    });
+    const docs_step = b.step("doc", "Emit documentation");
+
+    const docs_install = b.addInstallDirectory(.{
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+        .source_dir = lib.getEmittedDocs(),
+    });
+
+    docs_step.dependOn(&docs_install.step);
+    b.getInstallStep().dependOn(docs_step);
 }

@@ -1,5 +1,7 @@
+const std = @import("std");
 /// An error type returned by the standard allocator.
-pub const AllocatorError = @import("std").mem.Allocator.Error;
+pub const AllocatorError = std.mem.Allocator.Error;
+pub const UnexpectedError = std.Io.UnexpectedError;
 
 pub const ParseError = @import("parser/ParseError.zig").Error;
 pub const PrintError = @import("parser/ParseError.zig").PrintError;
@@ -9,4 +11,4 @@ pub const PrintError = @import("parser/ParseError.zig").PrintError;
 /// the current process.
 pub const OtherError = error{Overflow};
 /// Complete error type of the library.
-pub const YazapError = AllocatorError || ParseError || PrintError || OtherError;
+pub const YazapError = AllocatorError || UnexpectedError || ParseError || PrintError || OtherError;

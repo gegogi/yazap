@@ -14,7 +14,7 @@ test "positional arguments with auto index" {
     try app.rootCommand().addArg(Arg.positional("TWO", null, null));
     try app.rootCommand().addArg(Arg.positional("THREE", null, null));
 
-    const matches = try app.parseFrom(&.{ "val1", "val2", "val3" });
+    const matches = try app.parseFrom(std.testing.io, &.{ "val1", "val2", "val3" });
     try testing.expectEqualStrings("val1", matches.getSingleValue("ONE").?);
     try testing.expectEqualStrings("val2", matches.getSingleValue("TWO").?);
     try testing.expectEqualStrings("val3", matches.getSingleValue("THREE").?);
@@ -30,7 +30,7 @@ test "positional arguments with manual index" {
     try app.rootCommand().addArg(Arg.positional("THREE", null, 3));
     try app.rootCommand().addArg(Arg.positional("TWO", null, 2));
 
-    const matches = try app.parseFrom(&.{ "val1", "val2", "val3" });
+    const matches = try app.parseFrom(std.testing.io, &.{ "val1", "val2", "val3" });
     try testing.expectEqualStrings("val1", matches.getSingleValue("ONE").?);
     try testing.expectEqualStrings("val2", matches.getSingleValue("TWO").?);
     try testing.expectEqualStrings("val3", matches.getSingleValue("THREE").?);
@@ -57,7 +57,7 @@ test "command that takes single value" {
 
     try app.rootCommand().addArg(Arg.positional("PATH", null, 1));
 
-    const matches = try app.parseFrom(&.{"test.txt"});
+    const matches = try app.parseFrom(std.testing.io, &.{"test.txt"});
     try testing.expectEqualStrings("test.txt", matches.getSingleValue("PATH").?);
 
     app.deinit();
@@ -117,7 +117,7 @@ test "command that takes required positional arg" {
 
     try app.rootCommand().addArg(Arg.positional("PATH", null, null));
     app.rootCommand().setProperty(.positional_arg_required);
-    try testing.expectError(error.PositionalArgumentNotProvided, app.parseFrom(&.{}));
+    try testing.expectError(error.PositionalArgumentNotProvided, app.parseFrom(std.testing.io, &.{}));
 
     app.deinit();
 }
@@ -128,7 +128,7 @@ test "command requires subcommand" {
 
     try app.rootCommand().addSubcommand(app.createCommand("init", null));
     app.rootCommand().setProperty(.subcommand_required);
-    try testing.expectError(error.SubcommandNotProvided, app.parseFrom(&.{}));
+    try testing.expectError(error.SubcommandNotProvided, app.parseFrom(std.testing.io, &.{}));
 
     app.deinit();
 }
@@ -138,7 +138,7 @@ test "Option that does not takes value" {
     errdefer app.deinit();
 
     try app.rootCommand().addArg(Arg.booleanOption("version", 'v', null));
-    try testing.expectError(error.UnexpectedOptionValue, app.parseFrom(&.{"-v=13"}));
+    try testing.expectError(error.UnexpectedOptionValue, app.parseFrom(std.testing.io, &.{"-v=13"}));
 
     app.deinit();
 }
@@ -148,7 +148,7 @@ test "Option that takes single value" {
     errdefer app.deinit();
 
     try app.rootCommand().addArg(Arg.singleValueOption("output", 'o', null));
-    try testing.expectError(error.OptionValueNotProvided, app.parseFrom(&.{"-o"}));
+    try testing.expectError(error.OptionValueNotProvided, app.parseFrom(std.testing.io, &.{"-o"}));
 
     app.deinit();
 }
@@ -162,7 +162,7 @@ test "multiValuesOption provided with single value short" {
     // ex: clang sources...
     try app.rootCommand().addArg(srcs);
 
-    const matches_short = try app.parseFrom(&.{ "-s", "f1" });
+    const matches_short = try app.parseFrom(std.testing.io, &.{ "-s", "f1" });
     try testing.expectEqual(@as(usize, 1), matches_short.getMultiValues("sources").?.len);
 }
 
@@ -175,7 +175,7 @@ test "multiValuesOption provided with single value long" {
     // ex: clang sources...
     try app.rootCommand().addArg(srcs);
 
-    const matches_short = try app.parseFrom(&.{ "--sources", "f1" });
+    const matches_short = try app.parseFrom(std.testing.io, &.{ "--sources", "f1" });
     try testing.expectEqual(@as(usize, 1), matches_short.getMultiValues("sources").?.len);
 }
 
@@ -187,7 +187,7 @@ test "multiValuesOption provided with multiple values short" {
 
     // ex: clang sources...
     try app.rootCommand().addArg(srcs);
-    const matches = try app.parseFrom(&.{ "-s", "f1", "f2", "f3", "f4", "f5" });
+    const matches = try app.parseFrom(std.testing.io, &.{ "-s", "f1", "f2", "f3", "f4", "f5" });
 
     try testing.expectEqual(@as(usize, 5), matches.getMultiValues("sources").?.len);
 }
@@ -200,7 +200,7 @@ test "multiValuesOption provided with multiple values long" {
 
     // ex: clang sources...
     try app.rootCommand().addArg(srcs);
-    const matches = try app.parseFrom(&.{ "--sources", "f1", "f2", "f3", "f4", "f5" });
+    const matches = try app.parseFrom(std.testing.io, &.{ "--sources", "f1", "f2", "f3", "f4", "f5" });
 
     try testing.expectEqual(@as(usize, 5), matches.getMultiValues("sources").?.len);
 }
@@ -217,7 +217,7 @@ test "Option that takes many/multiple values" {
 
     // ex: clang sources...
     try app.rootCommand().addArg(srcs);
-    const matches = try app.parseFrom(&.{ "-s", "f1", "f2", "f3", "f4", "f5" });
+    const matches = try app.parseFrom(std.testing.io, &.{ "-s", "f1", "f2", "f3", "f4", "f5" });
 
     try testing.expectEqual(@as(usize, 5), matches.getMultiValues("sources").?.len);
 
@@ -235,7 +235,7 @@ test "Option with min values" {
     srcs.setProperty(.takes_value);
 
     try app.rootCommand().addArg(srcs);
-    try testing.expectError(error.TooFewOptionValue, app.parseFrom(&.{"-s=f1"}));
+    try testing.expectError(error.TooFewOptionValue, app.parseFrom(std.testing.io, &.{"-s=f1"}));
 
     app.deinit();
 }
@@ -249,6 +249,7 @@ test "Option with max values" {
 
     try app.rootCommand().addArg(srcs);
     try testing.expectError(error.TooManyOptionValue, app.parseFrom(
+        std.testing.io,
         &.{"-s=f1:f2:f3:f4:f5:f6"},
     ));
 
@@ -267,7 +268,7 @@ test "Option with allowed values" {
     );
 
     try app.rootCommand().addArg(stdd);
-    try testing.expectError(error.InvalidOptionValue, app.parseFrom(&.{"--std=c100"}));
+    try testing.expectError(error.InvalidOptionValue, app.parseFrom(std.testing.io, &.{"--std=c100"}));
 
     app.deinit();
 }
@@ -280,7 +281,7 @@ test "passing positional argument before options" {
     try app.rootCommand().addArg(Arg.booleanOption("all", 'a', null));
     app.rootCommand().setProperty(.positional_arg_required);
 
-    const matches = try app.parseFrom(&.{ ".", "-a" });
+    const matches = try app.parseFrom(std.testing.io, &.{ ".", "-a" });
     try testing.expectEqualStrings(".", matches.getSingleValue("PATH").?);
     try testing.expectEqual(true, matches.containsArg("all"));
 
@@ -294,7 +295,7 @@ test "passing positional argument after options" {
     try app.rootCommand().addArg(Arg.positional("PATH", null, null));
     try app.rootCommand().addArg(Arg.booleanOption("all", 'a', null));
 
-    const matches = try app.parseFrom(&.{ "-a", "." });
+    const matches = try app.parseFrom(std.testing.io, &.{ "-a", "." });
     try testing.expectEqualStrings(".", matches.getSingleValue("PATH").?);
     try testing.expectEqual(true, matches.containsArg("all"));
 
@@ -309,7 +310,7 @@ test "passing positional argument before and after options" {
     try app.rootCommand().addArg(Arg.booleanOption("all", 'a', null));
     try app.rootCommand().addArg(Arg.booleanOption("one-line", '1', null));
 
-    const matches = try app.parseFrom(&.{ "-1", ".", "-a" });
+    const matches = try app.parseFrom(std.testing.io, &.{ "-1", ".", "-a" });
     try testing.expectEqualStrings(".", matches.getSingleValue("PATH").?);
     try testing.expectEqual(true, matches.containsArg("one-line"));
     try testing.expectEqual(true, matches.containsArg("all"));
