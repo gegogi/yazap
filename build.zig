@@ -10,14 +10,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-<<<<<<< HEAD
     testStep(b, target, optimize);
     examplesStep(b, yazap, target, optimize);
-=======
-    testStep(b);
-    examplesStep(b, yazap);
     docsStep(b, yazap);
->>>>>>> origin/main
 }
 
 fn testStep(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
